@@ -38,7 +38,7 @@
                         </div>
                         <div class="row g-1 align-top mb-2">
                             <div class="col-12 col-lg-12 col-xl-3">
-                                <label for="email" class="col-form-label">Your Email Address</label>
+                                <label for="email" class="col-form-label">Email Address</label>
                             </div>
                             <div class="col-12 col-lg-12 col-xl-9">
                                 <input type="email" id="email" name="email" ref="email" v-model="pass.email" class="form-control" required="required">
@@ -49,7 +49,7 @@
                         </div>
                         <div class="row g-1 align-top mb-2">
                             <div class="col-12 col-lg-12 col-xl-3">
-                                <label for="confirmEmail" class="col-form-label">Confirm Your Email</label>
+                                <label for="confirmEmail" class="col-form-label">Confirm Email</label>
                             </div>
                             <div class="col-12 col-lg-12 col-xl-9">
                                 <input @change="validateConfirmEmail" type="email" id="confirmEmail" name="confirmEmail" ref="confirmEmail" v-model="confirmEmail" class="form-control" required="required">
@@ -131,7 +131,7 @@
                         </div>
                         <div v-if="isAnnualLocalPass || isGoldStarPass" class="row g-1 align-top mb-2">
                             <div class="col-12 col-lg-12 col-xl-3">
-                                <label for="postcode" class="col-form-label">Your Postcode</label>
+                                <label for="postcode" class="col-form-label">Postcode</label>
                             </div>
                             <div class="col-12 col-lg-12 col-xl-9">
                                 <input v-if="isAnnualLocalPass" @keyup="validatePostcode" @change="validatePostcode" type="text" id="postcode" name="postcode" ref="postcode" v-model="pass.postcode" class="form-control" pattern="6[0-9]{3}" required="required" minlength="4" maxlength="4">
@@ -142,20 +142,24 @@
                                 <div v-else="noParkForPostcodeError" class="org-error-message">
                                     {{noParkForPostcodeError}}
                                 </div>
-                                <span v-if="loadingParkGroups" class="spinner-border-sm org-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </span>
                             </div>
                         </div>
-                        <div v-if="parkGroups && parkGroups.length && pass.park_group" class="row g-1 align-top mb-2">
+                        <div v-if="postCodeValid" class="row g-1 align-top mb-2">
                             <div class="col-12 col-lg-12 col-xl-3">
                                 <label for="parkGroup" class="col-form-label">Park Group</label>
                             </div>
                             <div class="col-12 col-lg-12 col-xl-9">
-                                <select v-if="parkGroups.length>1" @change="updateParkGroup" v-model="pass.park_group_id" ref="parkGroup" id="parkGroup" name="parkGroup" class="form-select" aria-label="Park Group" required="required">
-                                    <option v-for="parkGroup in parkGroups" :value="parkGroup.id" :key="parkGroup.id">{{parkGroup.name}}</option>
-                                </select>
-                                <span v-else>{{pass.park_group.name}}</span>
+                                <template v-if="parkGroups && parkGroups.length">
+                                    <select v-if="parkGroups.length>1" @change="updateParkGroup" v-model="pass.park_group_id" ref="parkGroup" id="parkGroup" name="parkGroup" class="form-select" aria-label="Park Group" required="required">
+                                        <option v-for="parkGroup in parkGroups" :value="parkGroup.id" :key="parkGroup.id">{{parkGroup.name}}</option>
+                                    </select>
+                                    <span v-else>{{pass.park_group.name}}</span>
+                                </template>
+                                <template v-else>
+                                    <span class="spinner-border spinner-border-sm org-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </span>
+                                </template>
                             </div>
                         </div>
                         <div v-if="showParksList" class="row g-1 align-top mb-2">
@@ -224,6 +228,21 @@
                                 </div>
                             </div>
                         </div>
+                        <div v-if="eligibleForConcession" class="row g-1 align-top mb-2">
+                            <div class="col-12 col-lg-12 col-xl-3">
+                                <label for="concessionCardExpiry" class="col-form-label">Concession Card Expiry</label>
+                            </div>
+                            <div class="col-12 col-sm-4 col-lg-3 col-xl-2">
+                                <select id="concessionCardExpiryMonth" name="concessionCardExpiryMonth" v-model="pass.concession_card_expiry_month" class="form-select" required="required">
+                                    <option v-for="index in 12" :key="index" :value="index" :selected="1==index">{{index}}</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-4 col-lg-3 col-xl-2">
+                                <select id="concessionCardExpiryYear" name="concessionCardExpiryYear" v-model="pass.concession_card_expiry_year" class="form-select" required="required">
+                                    <option v-for="index in 10" :key="index+currentYear-1" :value="index+currentYear-1">{{index+currentYear-1}}</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="row g-1 align-top mb-2">
                             <div class="col-12 col-lg-12 col-xl-3">
                                 <label for="startDate" class="col-form-label">Start Date for Pass</label>
@@ -239,6 +258,7 @@
                             <div class="col-12 col-lg-12 col-xl-9">
                                 <div class="form-switch">
                                     <input class="form-check-input pl-2 org-form-switch-primary" type="checkbox" id="renewAutomatically" name="renewAutomatically" v-model="pass.renew_automatically">
+                                    &nbsp;<span class="fs-6 text-muted">{{ `Park pass prices are subject to change. You will be emailed ${passReminderDaysPrior} days before auto renewal with a quote for the next park pass.` }}</span>
                                 </div>
                             </div>
                         </div>
@@ -398,11 +418,11 @@
                             <div class="col-12 col-lg-12 col-xl-9">
                                 <template v-if="retailerGroupsForUser && retailerGroupsForUser.length>1">
                                     <select class="form-select" name="retailer_group_id" v-model="pass.sold_via">
-                                        <option v-for="retailerGroup in retailerGroupsForUser" :value="retailerGroup.id">{{ retailerGroup.name }}</option>
+                                        <option v-for="retailerGroup in retailerGroupsForUser" :value="retailerGroup.id">{{ retailerGroup.ledger_organisation_name }}</option>
                                     </select>
                                 </template>
                                 <template v-else>
-                                    <div class="lead"><span class="badge org-badge-primary fw-bold">{{ retailerGroupsForUser[0].name }}</span></div>
+                                    <div class="lead"><span class="badge org-badge-primary fw-bold">{{ retailerGroupsForUser[0].ledger_organisation_name }}</span></div>
                                 </template>
                             </div>
                         </div>
@@ -432,6 +452,7 @@
 
 <script>
 import { apiEndpoints, constants, helpers } from '@/utils/hooks'
+import { Tooltip } from 'bootstrap'
 import BootstrapSpinner from '@/utils/vue/BootstrapSpinner.vue'
 import BootstrapButtonSpinner from '@/utils/vue/BootstrapButtonSpinner.vue'
 import BootstrapAlert from '@/utils/vue/BootstrapAlert.vue'
@@ -481,6 +502,8 @@ export default {
                 email: '',
                 confirmEmail: '',
                 concession_id: 0,
+                concession_card_expiry_month: 1,
+                concession_card_expiry_year: new Date().getFullYear()+1,
                 date_start: this.startDate(),
                 discount_code: '',
                 voucher_code: '',
@@ -494,6 +517,7 @@ export default {
             passOptions: null,
             passOptionsLength: null,
             passPrice: 0,
+            postCodeValid: false,
             parkGroups: [],
             loadingParkGroups: false,
             concessionDiscountPercentage: 0,
@@ -501,11 +525,13 @@ export default {
             retailerGroupsForUser: null,
             confirmEmail: '',
             eligibleForConcession: false,
+            currentYear: new Date().getFullYear(),
             vehicleRegistrationNumbersKnown: true,
             extraVehicle: false,
             vehicleInputs: 1,
             extraVehicleText: 'Add a second vehicle',
             racMember: false,
+            passReminderDaysPrior: constants.PASS_REMINDER_DAYS_PRIOR,
 
             discountType: null,
             discountPercentage: 0.00,
@@ -527,6 +553,7 @@ export default {
         BootstrapButtonSpinner,
         BootstrapSpinner,
         BootstrapAlert,
+        constants
     },
     computed: {
         getHeading() {
@@ -539,7 +566,13 @@ export default {
             }
         },
         showAutomaticRenewalOption() {
-            return this.passType && !this.isRetailer;
+            console.log('this.passType.name: ' + this.passType.name)
+            if(constants.DAY_ENTRY_PASS_NAME == this.passType.name ||
+                constants.HOLIDAY_PASS_NAME == this.passType.name ||
+                constants.PERSONNEL_PASS_NAME == this.passType.name || this.isRetailer) {
+                return false;
+            }
+            return true;
         },
         showRacMemberSwitch() {
             return !this.isRetailer && this.isEmailValid && !this.isPinjarPass;
@@ -558,6 +591,7 @@ export default {
         },
         showConcessionSwitch() {
             if(this.pass.rac_discount_code && this.pass.rac_discount_code.length>0){
+                this.eligibleForConcession = false;
                 return false;
             }
             return !this.isPinjarPass;
@@ -600,13 +634,13 @@ export default {
             if(!this.passType){
                 return false;
             }
-            return ('ANNUAL_LOCAL_PASS'==this.passType.name ? true : false)
+            return (constants.ANNUAL_LOCAL_PASS_NAME==this.passType.name ? true : false)
         },
         isGoldStarPass() {
             if(!this.passType){
                 return false;
             }
-            return ('GOLD_STAR_PASS'==this.passType.name ? true : false)
+            return (constants.GOLD_STAR_PASS_NAME==this.passType.name ? true : false)
         },
         indefiniteArticle() {
             return ('A'==this.passType.display_name.substring(0,1) ? 'an' : 'a' )
@@ -668,7 +702,7 @@ export default {
                 vm.concessions = data.results
             })
             .catch(error => {
-                this.systemErrorMessage = constants.ERRORS.NETWORK;
+                this.systemErrorMessage = constants.ERRORS.SYSTEM;
                 console.error("There was an error!", error);
             });
         },
@@ -698,7 +732,7 @@ export default {
                 vm.title = vm.getHeading;
             })
             .catch(error => {
-                this.systemErrorMessage = constants.ERRORS.NETWORK;
+                this.systemErrorMessage = constants.ERRORS.SYSTEM;
                 console.error("There was an error!", error);
             });
         },
@@ -723,7 +757,7 @@ export default {
                 }
             })
             .catch(error => {
-                this.systemErrorMessage = constants.ERRORS.NETWORK;
+                this.systemErrorMessage = constants.ERRORS.SYSTEM;
                 console.error("There was an error!", error);
             });
         },
@@ -754,7 +788,7 @@ export default {
                 }
             })
             .catch(error => {
-                this.systemErrorMessage = constants.ERRORS.NETWORK;
+                this.systemErrorMessage = constants.ERRORS.SYSTEM;
                 console.error("There was an error!", error);
             }).finally(() => (this.loadingParkGroups = false));
         },
@@ -928,20 +962,23 @@ export default {
                         vm.$refs.postcode.setCustomValidity("Invalid field.");
                         vm.parkGroups = []
                         vm.pass.park_group = null
+                        vm.postCodeValid = false;
                         return false;
                     }
                     vm.$refs.postcode.setCustomValidity("");
+                    vm.postCodeValid = true;
                     vm.fetchParkGroups();
                     return true;
                 })
                 .catch(error => {
-                    this.systemErrorMessage = constants.ERRORS.NETWORK;
+                    this.systemErrorMessage = constants.ERRORS.SYSTEM;
                     console.error("There was an error!", error);
                 });
             } else {
                 vm.$refs.postcode.setCustomValidity("Invalid field.");
                 vm.parkGroups = []
                 vm.pass.park_group = null
+                vm.postCodeValid = false;
                 return false;
             }
         },
@@ -1004,7 +1041,7 @@ export default {
                 }
             })
             .catch(error => {
-                this.systemErrorMessage = constants.ERRORS.NETWORK;
+                this.systemErrorMessage = constants.ERRORS.SYSTEM;
                 console.error("There was an error!", error);
             });
         },
@@ -1032,7 +1069,7 @@ export default {
                 }
             })
             .catch(error => {
-                this.systemErrorMessage = constants.ERRORS.NETWORK;
+                this.systemErrorMessage = constants.ERRORS.SYSTEM;
                 console.error("There was an error!", error);
             });
         },
@@ -1050,25 +1087,25 @@ export default {
                         this.validateRacDiscountCode();
                     } else {
                         this.validateDiscountCode();
-                            if(vm.showVoucherCodeField){
-                                console.log("vm.showVoucherCodeField -- >")
-                                let voucherCodeValid = this.validateVoucherCode();
-                                let voucherPinValid = false;
-                                if(this.pass.voucher_code.length && voucherCodeValid){
-                                    console.log("voucherCodeValid valid -- >")
-                                    voucherPinValid = this.validateVoucherPin();
-                                }
-                                /* Todo: There are still issues with the validation process.
-                                if (typeof voucherPinValid !== 'undefined'){
-                                    console.log("voucherPinValid is undefined returning false -- >")
-                                    return false;
-                                }*/
-                                console.log("voucherPinValid = " + voucherPinValid)
-                                if(voucherCodeValid && voucherPinValid){
-                                    console.log("Is this happening -- >")
-                                    this.validateVoucherCodeBackend();
-                                }
+                        if(vm.showVoucherCodeField){
+                            console.log("vm.showVoucherCodeField -- >")
+                            let voucherCodeValid = this.validateVoucherCode();
+                            let voucherPinValid = false;
+                            if(this.pass.voucher_code.length && voucherCodeValid){
+                                console.log("voucherCodeValid valid -- >")
+                                voucherPinValid = this.validateVoucherPin();
                             }
+                            /* Todo: There are still issues with the validation process.
+                            if (typeof voucherPinValid !== 'undefined'){
+                                console.log("voucherPinValid is undefined returning false -- >")
+                                return false;
+                            }*/
+                            console.log("voucherPinValid = " + voucherPinValid)
+                            if(voucherCodeValid && voucherPinValid){
+                                console.log("Is this happening -- >")
+                                this.validateVoucherCodeBackend();
+                            }
+                        }
                     }
 
                 }
@@ -1121,7 +1158,8 @@ export default {
                 window.location.href = '/cart/';
             })
             .catch(error => {
-                this.systemErrorMessage = constants.ERRORS.NETWORK;
+                vm.isLoading = false;
+                this.systemErrorMessage = constants.ERRORS.SYSTEM;
                 console.error("There was an error!", error);
             });
             console.log(this.voucher);
@@ -1134,17 +1172,22 @@ export default {
     },
     mounted: function () {
         let vm = this;
+
+        new Tooltip(document.body, {
+         selector: "[data-bs-toggle='tooltip']",
+        })
+
         if(vm.store.userData){
             if(vm.store.userData.is_authenticated&&'external'==vm.store.userData.authorisation_level) {
                 vm.pass.first_name = vm.store.userData.user.first_name
                 vm.pass.last_name = vm.store.userData.user.last_name
                 vm.pass.email = vm.store.userData.user.email
             }
-
         }
         if(vm.isRetailer) {
             vm.fetchRetailerGroupsForUser();
         }
+
     }
 };
 </script>

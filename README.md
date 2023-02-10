@@ -31,9 +31,6 @@ A Ledger server must be run prior to the Park Passes Django application.
 
 The `LEDGER_API_URL` env var assumes that the server will be run with no port specified, i.e. using the default port 8000.
 
-The db listed by the `LEDGER_DATABASE_URL` env var holds user, organisation and other corporate data.
-Creating a new user or changing a user password must be done in the Ledger app/db.
-
 ## Vue JS
 - also see README.md in frontend root
 
@@ -75,7 +72,6 @@ required environment variables at run time. Example content:
     BPOINT_BILLER_CODE='1234567'
     BPOINT_MERCHANT_NUM='BPOINT_MERCHANT_NUM'
     BPAY_BILLER_CODE='987654'
-    PAYMENT_OFFICERS_GROUP='PAYMENT_GROUP'
     DEFAULT_FROM_EMAIL='FROM_EMAIL_ADDRESS'
     NOTIFICATION_EMAIL='NOTIF_RECIPIENT_1, NOTIF_RECIPIENT_2'
     NON_PROD_EMAIL='NON_PROD_RECIPIENT_1, NON_PROD_RECIPIENT_2'
@@ -90,10 +86,12 @@ required environment variables at run time. Example content:
     CRON_NOTIFICATION_EMAIL='email'
     ENABLE_DJANGO_LOGIN=True
     OSCAR_SHOP_NAME='shop_name'
-    LEDGER_DATABASE_URL='postgis://user:pw@localhost:port/db_name'
     LEDGER_API_URL="http://localhost:8000"
     LEDGER_API_KEY="API_KEY"
     # Below is required to run Vue Js front end with hot reload
     DEV_APP_BUILD_URL="http://localhost:8080/static/parkpassesapp.js"
     # Below prints emails to screen instead of sending via mail server
     CONSOLE_EMAIL_BACKEND=True
+    PAYMENT_INTERFACE_SYSTEM_ID='PAYMENT_INTERFACE_SYSTEM_ID'
+    PAYMENT_INTERFACE_SYSTEM_PROJECT_CODE='PAYMENT_INTERFACE_SYSTEM_PROJECT_CODE'
+    PICA_EMAIL='PICA_EMAIL'

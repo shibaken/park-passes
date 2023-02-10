@@ -1,4 +1,3 @@
-import hashlib
 import logging
 
 from django.conf import settings
@@ -7,10 +6,52 @@ from django.utils.text import slugify
 from ledger_api_client.ledger_models import EmailUserRO as EmailUser
 from ledger_api_client.managed_models import SystemGroupPermission
 
-from parkpasses.components.passes.models import Pass
+from parkpasses.components.passes.models import (
+    DistrictPassTypeDurationOracleCode,
+    Pass,
+    PassType,
+    PassTypePricingWindow,
+)
 from parkpasses.components.retailers.models import RetailerGroup, RetailerGroupUser
 
 logger = logging.getLogger(__name__)
+
+
+def check_settings(messages, critical_issues):
+    if settings.PICA_EMAIL:
+        messages.append("SUCCESS: PICA_EMAIL is set")
+    else:
+        critical_issues.append("CRITICAL: PICA_EMAIL is not set")
+
+
+def park_passes_system_check(messages, critical_issues):
+    logger.info("running park_passes_system_check")
+    cache_key = "parkpasses_system_check"
+    parkpasses_system_check = cache.get(cache_key)
+    if parkpasses_system_check is None:
+        check_settings(messages, critical_issues)
+        RetailerGroup.check_DBCA_retailer_group(messages, critical_issues)
+        PassType.check_required_pass_types_exist(messages, critical_issues)
+        RetailerGroup.check_retailers_have_ledger_organisations(
+            messages, critical_issues
+        )
+        RetailerGroup.check_retailers_have_districts(messages, critical_issues)
+        PassTypePricingWindow.check_default_pricing_windows(messages, critical_issues)
+        DistrictPassTypeDurationOracleCode.check_oracle_codes_have_been_entered(
+            messages, critical_issues
+        )
+        logger.info(
+            "Adding parkpasses_system_check messages and critical issues to cache"
+        )
+        cache.set(
+            cache_key,
+            {"messages": messages, "critical_issues": critical_issues},
+            settings.CACHE_SYSTEM_CHECK_FOR,
+        )
+    else:
+        logger.info("Retrieving parkpasses_system_check from cache")
+        messages.extend(parkpasses_system_check["messages"])
+        critical_issues.extend(parkpasses_system_check["critical_issues"])
 
 
 def belongs_to(request, group_name):
@@ -142,19 +183,6 @@ def get_retailer_groups_for_user(request):
     return RetailerGroup.objects.filter(id__in=retailer_group_ids)
 
 
-def get_rac_discount_code(email):
-    discount_hash = hashlib.shake_256(
-        (settings.RAC_HASH_SALT + email).encode("utf-8")
-    ).hexdigest(10)
-    return discount_hash
-
-
-def check_rac_discount_hash(discount_hash, email):
-    return discount_hash == hashlib.shake_256(
-        (settings.RAC_HASH_SALT + email).encode("utf-8")
-    ).hexdigest(10)
-
-
 def in_dbca_domain(request):
     return request.user.is_staff
 
@@ -170,6 +198,8 @@ def is_departmentUser(request):
 
 
 def is_customer(request):
+    if is_retailer(request):
+        return False
     return request.user.is_authenticated and not request.user.is_staff
 
 
